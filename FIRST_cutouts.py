@@ -139,6 +139,7 @@ class ImageViewer(Tk.Frame): #Main Interface and Image Viewer
 		Tk.Frame.__init__(self, master)
 		current_files = os.listdir('FIRST_Cutouts/')
 		self.files = current_files 
+		while not self.files: self.download_from_file()
 		self.pos = 0 #Position in the list of files
 		self.createWidgets()
 		self.createImage()
@@ -284,6 +285,8 @@ class ImageViewer(Tk.Frame): #Main Interface and Image Viewer
 				downloadCutouts(genFromFile(file_name))
 				current_files = os.listdir('FIRST_Cutouts/')
 				self.files = current_files
+
+			elif not self.files: sys.exit(2)
 
 		else:
 
