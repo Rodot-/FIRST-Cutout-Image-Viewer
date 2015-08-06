@@ -3,7 +3,7 @@
 FIRST_cutouts.py
 FIRST Image Cutout Viewing Tool
 '''
-import re, os, urllib2, urllib, socket, sys, itertools
+import re, os, urllib2, urllib, socket, sys, itertools, shutil
 import matplotlib
 matplotlib.use('TkAgg')
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2TkAgg
@@ -139,6 +139,7 @@ class ImageViewer(Tk.Frame): #Main Interface and Image Viewer
 		Tk.Frame.__init__(self, master)
 		current_files = os.listdir('FIRST_Cutouts/')
 		self.files = current_files 
+		self.median = [] #Place to store the median stack result
 		while not self.files: self.download_from_file()
 		self.pos = 0 #Position in the list of files
 		self.createWidgets()
@@ -183,7 +184,7 @@ class ImageViewer(Tk.Frame): #Main Interface and Image Viewer
 		self.loader = Tk.Canvas(self.loaderFrame, height = 10) 
 		if TKDIAG:
 			self.downloader = Tk.Button(self.buttonFrame, text = 'Download', command = self.download_from_file)
-
+			self.image_loader = Tk.Button(self.buttonFrame, text = 'Load Image', command = self.load_cutout_from_file)
 
 	def packWidgets(self):
 
@@ -197,6 +198,7 @@ class ImageViewer(Tk.Frame): #Main Interface and Image Viewer
 		self.medButton.pack(side = Tk.LEFT, fill = Tk.X, expand = 1)
 		if TKDIAG:
 			self.downloader.pack(side = Tk.LEFT, fill = Tk.X, expand = 1)
+			self.image_loader.pack(side = Tk.LEFT, fill = Tk.X, expand = 1)
 
 	def start_loading(self): #Initialize the Loading bar
 
@@ -240,6 +242,13 @@ class ImageViewer(Tk.Frame): #Main Interface and Image Viewer
 	def median_stack(self): #Function for finding the median all images
 		#TODO: Fix memory issues for large data sets 
 
+		if self.median: #"I feel like we've done this before..."
+			self.fig.suptitle('Median Stacking of BAL QSOs')
+			self.image.set_data(self.median)
+			self.image.autoscale()
+			self.fig.canvas.draw()
+			return
+
 		data = [] #A list of images to be stacked
 		len_files = len(self.files)
 		self.start_loading()
@@ -263,6 +272,8 @@ class ImageViewer(Tk.Frame): #Main Interface and Image Viewer
 		try: 
 			print "Stacking... This will take a minute or two"
 			data = np.nanmedian(data, axis = 0, overwrite_input = True)
+			self.median = data
+
 		except MemoryError:
 			print "Warning: Images are too big!"
 			print "Cannot Compute Median"
@@ -292,6 +303,33 @@ class ImageViewer(Tk.Frame): #Main Interface and Image Viewer
 
 			print "Function Not Currently Supported."
 
+	def load_cutout_from_file(self): #Manually select an image file to show
+		global current_files
+
+		if TKDIAG:
+		
+			file_name = tkFileDialog.askopenfilename(filetypes = [('FITS',('.fits','.fit')), ('All Files','.*')], initialdir = 'FIRST_Cutouts/', parent = self)
+			while file_name: #Only max 2 loops
+
+				try: #Do we already have this file?
+					self.pos = self.files.index(os.path.basename(file_name))
+					self.view_current()
+					file_name = ''
+				except ValueError as e:
+					print e
+					print "File Not in FIRST_Cutouts/"
+					decision = raw_input("Would You Like To Copy it There? (y/N):")
+					if decision.upper() == 'Y':
+						shutil.copy(file_name, 'FIRST_Cutouts/')
+						self.files = current_files = os.listdir('FIRST_Cutouts/')
+						file_name = os.path.basename(file_name)
+
+					else:
+						file_name = ''
+
+		else:
+	
+			print "Function Not Currently Supported"
 
 if __name__ == '__main__':
 
