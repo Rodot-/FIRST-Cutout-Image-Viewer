@@ -524,8 +524,14 @@ class ImageViewer(Tk.Frame): #Main Interface and Image Viewer
 			if file_name:
 
 				downloadCutouts(genFromFile(file_name))
+				old_files = set(current_files)
 				current_files = os.listdir('FIRST_Cutouts/')
 				self.files = current_files
+				try:
+					new_files = set(current_files) - old_files
+					self.stacker.update_listboxes(*new_files)
+				except NameError as e:
+					pass
 
 			elif not self.files: sys.exit(2)
 
