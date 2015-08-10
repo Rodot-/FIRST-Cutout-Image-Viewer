@@ -195,6 +195,12 @@ class Stacker(Tk.Frame): #Custom Widget for Managing which Objects get Stacked
 
 		self.description = Tk.Label(self.descriptionFrame, text = description, padx = 5, pady = 5)
 
+	def update_listboxes(self, *file_names):
+
+		names = filter(None,map(self.com.search, file_names))
+		for name in names:self.unstackable.insert(Tk.END,name.group())
+		self.update()		
+
 	def initWidgets(self):
 		'''
 		Initialize widgets that require extra configuration.
@@ -311,9 +317,9 @@ class Stacker(Tk.Frame): #Custom Widget for Managing which Objects get Stacked
 			item = selection.join(('SDSS_','.fits'))
 			index = self.master.files.index(item)
 			self.master.pos = index
-			self.master.view_current()
-		self.after(50, self.poll, event)	
+			self.master.view_current(False)
 
+		self.after(50, self.poll, event)	
 
 	def on_focus_in(self, event):
 		'''
@@ -427,15 +433,14 @@ class ImageViewer(Tk.Frame): #Main Interface and Image Viewer
 		#Headers:
 		#layout:
 				
-	def view_current(self): #View the Image at the Current Position
+	def view_current(self, see = True): #View the Image at the Current Position
 		try:
-			#self.fig.suptitle(self.files[self.pos][:-5].split('_')[1])
 			self.ax.set_title(self.files[self.pos][:-5].split('_')[1])
 			img = fits.open('FIRST_Cutouts/'+self.files[self.pos])[0].data
 			self.image.set_data(img)
 			self.image.autoscale()
 			self.fig.canvas.draw()
-			self.stacker.see_item(self.files[self.pos])
+			if see: self.stacker.see_item(self.files[self.pos])
 
 		except IOError as e: #The fits file could not load correctly
 			print e, 
@@ -530,7 +535,7 @@ class ImageViewer(Tk.Frame): #Main Interface and Image Viewer
 
 	def load_cutout_from_file(self): #Manually select an image file to show
 		global current_files
-
+		
 		if TKDIAG:
 		
 			file_name = tkFileDialog.askopenfilename(filetypes = [('FITS',('.fits','.fit')), ('All Files','.*')], initialdir = 'FIRST_Cutouts/', parent = self)
@@ -538,6 +543,10 @@ class ImageViewer(Tk.Frame): #Main Interface and Image Viewer
 
 				try: #Do we already have this file?
 					self.pos = self.files.index(os.path.basename(file_name))
+					try:
+						self.stacker.update_listboxes(file_name)
+					except NameError as e:
+						print e,	
 					self.view_current()
 					file_name = ''
 				except ValueError as e:
@@ -551,7 +560,7 @@ class ImageViewer(Tk.Frame): #Main Interface and Image Viewer
 
 					else:
 						file_name = ''
-
+			
 		else:
 	
 			print "Function Not Currently Supported"
@@ -588,7 +597,7 @@ class ImageViewer(Tk.Frame): #Main Interface and Image Viewer
 			self.err_dlog.see(Tk.END)
 			self.err_dlog.config(state = Tk.DISABLED)
 		self.err_dlog.write = dlog_write
-		sys.stdout = self.err_dlog	
+		#sys.stdout = self.err_dlog	
 		sys.stderr = self.err_dlog	
 		self.err_dlog.pack(expand = 1, fill = Tk.BOTH)
 
