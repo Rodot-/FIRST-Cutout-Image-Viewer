@@ -527,11 +527,8 @@ class ImageViewer(Tk.Frame): #Main Interface and Image Viewer
 				old_files = set(current_files)
 				current_files = os.listdir('FIRST_Cutouts/')
 				self.files = current_files
-				try:
-					new_files = set(current_files) - old_files
-					self.stacker.update_listboxes(*new_files)
-				except NameError as e:
-					pass
+				new_files = set(current_files) - old_files
+				self.stacker.update_listboxes(*new_files)
 
 			elif not self.files: sys.exit(2)
 
@@ -549,10 +546,7 @@ class ImageViewer(Tk.Frame): #Main Interface and Image Viewer
 
 				try: #Do we already have this file?
 					self.pos = self.files.index(os.path.basename(file_name))
-					try:
-						self.stacker.update_listboxes(file_name)
-					except NameError as e:
-						print e,	
+					self.stacker.update_listboxes(file_name)
 					self.view_current()
 					file_name = ''
 				except ValueError as e:
