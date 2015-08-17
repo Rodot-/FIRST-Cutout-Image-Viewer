@@ -559,7 +559,10 @@ class ImageViewer(Tk.Frame): #Main Interface and Image Viewer
 				current_files = os.listdir('FIRST_Cutouts/')
 				self.files = current_files
 				new_files = set(current_files) - old_files
-				self.stacker.update_listboxes(*new_files)
+				try:
+					self.stacker.update_listboxes(*new_files)
+				except AttributeError as e:
+					pass
 
 			elif not self.files: sys.exit(2)
 
