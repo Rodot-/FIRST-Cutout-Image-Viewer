@@ -72,8 +72,6 @@ LEFT_ARROW = u'\u25C0'
 SIGMA = u'\u03A3'
 ###
 
-
-
 def reformat(coord, unit): #Reformats a coordinate based on the units
 	result = coord_com.search(coord) #Check if the coordinate is valid
 	if result is None: raise Exception("Error: Incorrect Format", coord)
@@ -199,6 +197,7 @@ class Stacker(Tk.Frame): #Custom Widget for Managing which Objects get Stacked
 		self.description = Tk.Label(self.descriptionFrame, text = description, padx = 5, pady = 5)
 
 	def update_listboxes(self, *file_names):
+		'''More of an initialization.'''
 
 		names = filter(None,map(self.com.search, file_names))
 		for name in names:self.unstackable.insert(Tk.END,name.group())
@@ -239,7 +238,8 @@ class Stacker(Tk.Frame): #Custom Widget for Managing which Objects get Stacked
 
 
 	def BDSM(self):
-
+		'''Event Bindings for Various Widgets'''
+		
 		self.unstackable.bind('<Double-Button-1>', self.push)
 		self.stackable.bind('<Double-Button-1>', self.pull)
 
@@ -252,10 +252,12 @@ class Stacker(Tk.Frame): #Custom Widget for Managing which Objects get Stacked
 	def file_sort(self, stack, parent_stack):
 		'''Sort a list of object names based on the ordering
 		in same master list of file names associated with the object'''
+
 		mapping = dict([(f[5:-5],i) for i,f in enumerate(parent_stack)])
 		return sorted(tuple(stack), key = lambda x: mapping[x])
 
 	def push(self, event = None):
+		'''Move and object from the left listbox to the right'''
 
 		selection = self.unstackable.curselection()
 		ustack = self.unstackable.get(0,Tk.END)
@@ -274,7 +276,7 @@ class Stacker(Tk.Frame): #Custom Widget for Managing which Objects get Stacked
 		self.update()
 		
 	def pull(self, event = None):
-
+		'''Move and object from the right listbox to the left'''		
 		selection = self.stackable.curselection()
 		stack = self.stackable.get(0,Tk.END)
 		ustack = self.unstackable.get(0,Tk.END)
@@ -292,14 +294,18 @@ class Stacker(Tk.Frame): #Custom Widget for Managing which Objects get Stacked
 		self.update()
 
 	def get_stackable(self):
+		'''Returns a list of file names from the right listbox'''
 
 		return [s.join(('SDSS_','.fits')) for s in self.stackable.get(0,Tk.END)]
 
 	def get_unstackable(self):
+		'''Returns a list of file names from the left listbox'''
 	
 		return [s.join(('SDSS_','.fits')) for s in self.unstackable.get(0,Tk.END)]
 
 	def see_item(self, file_name):
+		'''Finds the file name in one of the listboxes
+		and jumps to it'''
 
 		search = self.com.search(file_name)
 		if search:
@@ -350,6 +356,9 @@ class Stacker(Tk.Frame): #Custom Widget for Managing which Objects get Stacked
 		pass
 	
 class ImageViewer(Tk.Frame): #Main Interface and Image Viewer
+	'''Main interface and image viewer.
+	
+	Contains all major widgets responsible for viewing the images'''
 
 	def __init__(self, master):
 		global current_files
@@ -391,6 +400,7 @@ class ImageViewer(Tk.Frame): #Main Interface and Image Viewer
 		self.view_current()	
 
 	def createFigure(self):
+		'''Build the main figure canvas and toolbar.'''
 
 		self.figureFrame = Tk.Frame(self)
 		self.fig = figure(figsize = (7,6), dpi = 100)
@@ -449,7 +459,12 @@ class ImageViewer(Tk.Frame): #Main Interface and Image Viewer
 		#Headers:
 		#layout:
 				
-	def view_current(self, see = True): #View the Image at the Current Position
+	def view_current(self, see = True): 
+		'''View the Image at the Current Position
+
+		Optionally, the @see parameter determines if the
+		user would like to highlight the item they are viewing'''
+
 		try:
 			self.ax.set_title(self.files[self.pos][5:-5])
 			img = fits.open('/'.join(('FIRST_Cutouts/',self.files[self.pos])))[0].data
@@ -583,6 +598,9 @@ class ImageViewer(Tk.Frame): #Main Interface and Image Viewer
 		print "Done"
 
 	def get_stats(self):
+		'''Display various statistics about the image
+		in a small popup window'''
+
 
 		data = self.image.get_array()
 		std = str(data.std())
