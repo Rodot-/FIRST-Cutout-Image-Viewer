@@ -3,7 +3,7 @@
 FIRST_cutouts.py
 FIRST Image Cutout Viewing Tool
 '''
-import re, os, urllib2, urllib, socket, sys, itertools, shutil
+import re, os, urllib2, urllib, socket, sys, itertools, shutil, time
 import matplotlib
 matplotlib.use('TkAgg')
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2TkAgg
@@ -42,13 +42,16 @@ except ImportError as e:
 if not os.path.exists('FIRST_Cutouts/'):os.makedirs('FIRST_Cutouts/')
 #CONSTANTS:
 ##Program Parameters
+MEMMAP = True #Use memory mapping while opening fits files?
 REMOVE_FAILED_LOADS = False #Should Incomplete FITS files be removed?
 IMAGE_SIZE = 15.0 #Image size in arc-minutes
+DISPLAY_SIZE = 15.0 #Display size in arc-minutes, not functional
 IMAGE_TYPE = "FITS_File" #Type of image to return
 GREEN_POOL_SIZE = 32 #Size of Greenpool: number of concurrent download threads
 ##Other
 #Website we get cutouts from
-TARGET = "http://third.ucllnl.org/cgi-bin/firstcutout" #Regular expression for determining the format of input coordinates
+TARGET = "http://third.ucllnl.org/cgi-bin/firstcutout" 
+#Regular expression for determining the format of input coordinates
 COORD_REGEX = "(?P<ms>([+\-]?\d{1,2})(?:(?P<s>[: ])|(?P<f>(?:h|d)))(\d{1,2})(?(f)m|(?P=s))([\d.]+)(?(f)s|\d$))|(?P<deg>^([+\-]?(?=[\d.]).)*$)"
 #Regular Expression for generating the object SDSS names
 NAME_REGEX = r"(\d{2} \d{2} \d{2}\.\d{2})\d* ([+\-]\d{2} \d{2} \d{2}\.\d)"
@@ -246,32 +249,46 @@ class Stacker(Tk.Frame): #Custom Widget for Managing which Objects get Stacked
 		self.unstackable.bind('<FocusIn>', self.on_focus_in)
 		self.stackable.bind('<FocusIn>', self.on_focus_in)
 
+	def file_sort(self, stack, parent_stack):
+		'''Sort a list of object names based on the ordering
+		in same master list of file names associated with the object'''
+		mapping = dict([(f[5:-5],i) for i,f in enumerate(parent_stack)])
+		return sorted(tuple(stack), key = lambda x: mapping[x])
+
 	def push(self, event = None):
 
 		selection = self.unstackable.curselection()
 		ustack = self.unstackable.get(0,Tk.END)
+		stack = self.stackable.get(0,Tk.END)
 		items = set([ustack[i] for i in selection])
 		ustack = set(ustack) - items
 
+		items = self.file_sort(stack+tuple(items), self.master.files)
+		ustack = self.file_sort(ustack, self.master.files)
+
 		self.unstackable.delete(0,Tk.END)
+		self.stackable.delete(0,Tk.END)
 		self.stackable.insert(Tk.END, *items)
 		self.unstackable.insert(Tk.END, *ustack)
 
-		self.stackable.see(Tk.END)
 		self.update()
 		
 	def pull(self, event = None):
 
 		selection = self.stackable.curselection()
 		stack = self.stackable.get(0,Tk.END)
+		ustack = self.unstackable.get(0,Tk.END)
 		items = set([stack[i] for i in selection])
 		stack = set(stack) - items
 
+		items = self.file_sort(tuple(items)+ustack, self.master.files)
+		stack = self.file_sort(stack, self.master.files)
+
 		self.stackable.delete(0,Tk.END)
+		self.unstackable.delete(0,Tk.END)
 		self.unstackable.insert(Tk.END, *items)
 		self.stackable.insert(Tk.END, *stack)
 
-		self.unstackable.see(Tk.END)
 		self.update()
 
 	def get_stackable(self):
@@ -319,7 +336,7 @@ class Stacker(Tk.Frame): #Custom Widget for Managing which Objects get Stacked
 			self.master.pos = index
 			self.master.view_current(False)
 
-		self.after(50, self.poll, event)	
+		self.after(100/6, self.poll, event)	
 
 	def on_focus_in(self, event):
 		'''
@@ -344,7 +361,6 @@ class ImageViewer(Tk.Frame): #Main Interface and Image Viewer
 		while not self.files: self.download_from_file()
 		self.pos = 0 #Position in the list of files
 		self.canvas_lock_var = Tk.IntVar() #Are we updating the canvas?
-		self.bg = None #Figure background for blitting
 		self.createWidgets()
 		self.createImage()
 		self.packWidgets()
@@ -435,8 +451,8 @@ class ImageViewer(Tk.Frame): #Main Interface and Image Viewer
 				
 	def view_current(self, see = True): #View the Image at the Current Position
 		try:
-			self.ax.set_title(self.files[self.pos][:-5].split('_')[1])
-			img = fits.open('FIRST_Cutouts/'+self.files[self.pos])[0].data
+			self.ax.set_title(self.files[self.pos][5:-5])
+			img = fits.open('/'.join(('FIRST_Cutouts/',self.files[self.pos])))[0].data
 			self.image.set_data(img)
 			self.image.autoscale()
 			self.fig.canvas.draw()
@@ -483,7 +499,7 @@ class ImageViewer(Tk.Frame): #Main Interface and Image Viewer
 			print f
 			if not i%100: self.update_loading(1.0*i/len_files)
 			try:
-				img_file = fits.open('/'.join(('FIRST_Cutouts',f)), memmap = False)
+				img_file = fits.open('/'.join(('FIRST_Cutouts',f)), memmap = MEMMAP)
 				img = img_file[0].data
 				img_file.close()				
 
