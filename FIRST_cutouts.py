@@ -1,7 +1,9 @@
 #!/usr/bin/env python
 '''
-FIRST_cutouts.py
-FIRST Image Cutout Viewing Tool
+Tool for viewing image cutouts from the VLA FIRST survey.
+
+More in depth
+Description here
 '''
 import re, os, urllib2, urllib, socket, sys, itertools, shutil, time
 import matplotlib
@@ -39,42 +41,80 @@ except ImportError as e:
 	TKDIAG = False
 #Setup
 #Check if the cutoutfolder exists. If not: create it.
-if not os.path.exists('FIRST_Cutouts/'):os.makedirs('FIRST_Cutouts/')
+IMAGE_PATH = 'FIRST_Cutouts' #Path to image cutouts
+if not os.path.exists(IMAGE_PATH):os.makedirs(IMAGE_PATH)
+
 #CONSTANTS:
 ##Program Parameters
 MEMMAP = True #Use memory mapping while opening fits files?
 REMOVE_FAILED_LOADS = False #Should Incomplete FITS files be removed?
-IMAGE_SIZE = 15.0 #Image size in arc-minutes
+IMAGE_SIZE = 5.0 #Image size in arc-minutes
 DISPLAY_SIZE = 15.0 #Display size in arc-minutes, not functional
 IMAGE_TYPE = "FITS_File" #Type of image to return
 GREEN_POOL_SIZE = 32 #Size of Greenpool: number of concurrent download threads
-##Other
-#Website we get cutouts from
 TARGET = "http://third.ucllnl.org/cgi-bin/firstcutout" 
-#Regular expression for determining the format of input coordinates
+'''string: Website we target to extract the image cutouts.'''
+##Regular Expressions
 COORD_REGEX = "(?P<ms>([+\-]?\d{1,2})(?:(?P<s>[: ])|(?P<f>(?:h|d)))(\d{1,2})(?(f)m|(?P=s))([\d.]+)(?(f)s|\d$))|(?P<deg>^([+\-]?(?=[\d.]).)*$)"
-#Regular Expression for generating the object SDSS names
-NAME_REGEX = r"(\d{2} \d{2} \d{2}\.\d{2})\d* ([+\-]\d{2} \d{2} \d{2}\.\d)"
+'''string: Regular expression for determining the format of input coordinates.
 
+Used for discovering the format of an input coordinate
+	so that it may be changed to a desired format.
+
+Groups:
+	ms: matching string is formatted in hms/dms
+	s: separator if string is formatted in hms/dms (colon or white space)
+	f: the characters hms or dms are used as the separators 
+	deg: matching string is formatted in decimal degrees
+'''
+NAME_REGEX = r"(\d{2} \d{2} \d{2}\.\d{2})\d* ([+\-]\d{2} \d{2} \d{2}\.\d)"
+'''string: Regular expression for generating the object name'''
 #Compile the regex functions
 coord_com = re.compile(COORD_REGEX)
 name_com = re.compile(NAME_REGEX)
+##Other
+current_files = os.listdir(IMAGE_PATH)
+'''The list of files already downloaded.
 
-#The list of files already downloaded.  Used to make sure we don't download duplicates
-current_files = os.listdir('FIRST_Cutouts/')
+Used to make sure we don't download duplicates.
+'''
 #Mutable global variable
-#Dictionary of URL parameters to be encoded.  Will be updated for each object
 fields = {'RA':"","ImageType":IMAGE_TYPE,"ImageSize":IMAGE_SIZE}
+'''Dictionary of URL parameters to be encoded.
 
+Will be updated for each object.
+
+Keys:
+	RA (string): full coordinate formed by 
+		angle of right ascension in sexagesimal
+		coordinates separated by single spaces
+		joined by a single space with
+		declination in sexagesimal coodinates
+		separated by single spaces
+	ImageType (string): image format requested
+	ImageSize (int): size of image in arc-minutes
+'''
 #Special Characters
 RIGHT_ARROW = u'\u25B6'
 LEFT_ARROW = u'\u25C0'
 SIGMA = u'\u03A3'
 ###
 
-def reformat(coord, unit): #Reformats a coordinate based on the units
+def reformat(coord, unit): 
+	'''Reformats a coordinate based on the unit.
+
+	Args:
+		coord (string): angle of right ascention or declination
+		unit (string): the output format (h for hms, deg for dms)
+
+	Returns:
+		coord (string): formatted coordinate
+
+	Raises:
+		SyntaxError: If 'coord' is not in a valid format
+	'''
 	result = coord_com.search(coord) #Check if the coordinate is valid
-	if result is None: raise Exception("Error: Incorrect Format", coord)
+	if result is None: raise SyntaxError("Error: Incorrect Format", coord)
 	if result.group('deg') is not None: #Coordinate is in degree format
 		coord = Angle(result.group('deg') + 'd').to_string(unit, sep = ' ', alwayssign = True, pad = True, precision = 8)
 	else: #Coordinate is in sexagesimal format
@@ -87,7 +127,19 @@ def reformat(coord, unit): #Reformats a coordinate based on the units
 			coord = Angle(result.group('ms')).to_string(unit, sep = ' ', alwayssign = True, pad = True, precision = 8)
 	return coord	
 
-def getData(RA,DEC): #Encodes the url data of the RA and DEC for use by getCutout
+def getData(RA,DEC): 
+	'''Encodes the url data of the RA and DEC for use by getCutout.
+
+	Args:
+		RA (string): angle of right ascension
+		DEC (string): declination
+	
+	Returns:
+		None: if the cutout is already downloaded
+
+		data (string): url encoded data to be sent to the target
+		name (string): a filename to download the object to
+	'''
 	coord = " ".join((reformat(RA, 'h'), reformat(DEC, 'deg')))
 	name = "SDSS_J"+"".join("".join(name_com.search(coord).groups()).split())+".fits"
 	fields['RA'] = coord #fields['RA'] is actually the entire coordinate
@@ -95,8 +147,17 @@ def getData(RA,DEC): #Encodes the url data of the RA and DEC for use by getCutou
 		data = urllib.urlencode(fields)
 		return data, name 
 
-def getCutout(data, name): #Downloads the image cutout to a file
+def getCutout(data, name):
+	'''Downloads the image cutout to a file.
 
+	Args: 
+		see 'Returns' of 'getData'
+
+	Returns:
+		status (int): 1 for sucessful download
+			0 for unsucessful download
+		name (string): name of the created file
+	'''
 	try:
 		req = urllib2.Request(TARGET, data)
 		resp = urllib2.urlopen(req, None, 10)
@@ -116,14 +177,29 @@ def getCutout(data, name): #Downloads the image cutout to a file
 			pass
 	return status, name
 
-def genFromFile(file_name): #Generates RA,DEC pairs from a file for use in downloadCutouts
+def genFromFile(file_name): 
+	'''Generates RA,DEC pairs from a file for use in downloadCutouts.
 
+	Args:
+		file_name (string): input file name
+
+	Returns:
+		columns (list): Nx2 list where N is the number
+		of objects; first column being RA, second column
+		being DEC
+	'''
 	with open(file_name,'rb') as inFile:
 		columns = [row.strip().split(',') for row in inFile]
 	return columns
 
-def downloadCutouts(coord_list): #Downloads cutouts from a list of RA, DEC pairs
+def downloadCutouts(coord_list): 
+	'''Downloads cutouts from a list of RA, DEC pairs
 
+	Args:
+		coord_list (list): Nx2 list where N is the number
+		of object; first column being RA, decond column
+		being DEC
+	'''
 	print "Generating URLs"
 	raw_params = (getData(RA, DEC) for RA, DEC in coord_list)
 	params = (param for param in raw_params if param is not None)
@@ -163,7 +239,7 @@ class Stacker(Tk.Frame): #Custom Widget for Managing which Objects get Stacked
 		self.createWidgets()
 		self.initWidgets()
 		self.packWidgets()
-		self.BDSM()
+		self.bindWidgets()
 	
 	def createWidgets(self):
 		'''
@@ -237,9 +313,8 @@ class Stacker(Tk.Frame): #Custom Widget for Managing which Objects get Stacked
 		self.buttonFrame.pack(side = Tk.BOTTOM, fill = Tk.X, expand = 0)
 
 
-	def BDSM(self):
+	def bindWidgets(self):
 		'''Event Bindings for Various Widgets'''
-		
 		self.unstackable.bind('<Double-Button-1>', self.push)
 		self.stackable.bind('<Double-Button-1>', self.pull)
 
@@ -380,7 +455,7 @@ class ImageViewer(Tk.Frame): #Main Interface and Image Viewer
 
 		self.ax = self.fig.add_subplot(111)
 		#Draw the first image to initialize the display
-		self.ax.imshow(fits.open('FIRST_Cutouts/'+self.files[0])[0].data, cmap = 'jet')
+		self.ax.imshow([[0.0,0.0],[0.0,0.0]], cmap = 'jet')
 		self.image = self.ax.images[0] #The image artist
 		self.cbar = self.fig.colorbar(self.image, cmap = 'jet', ax = self.ax, orientation = 'vertical', fraction = 0.046, pad = 0.04) #The colorbar artist
 
@@ -657,6 +732,16 @@ if __name__ == '__main__':
 
 
 __author__ = "John O'Brien"
-__version__ = "1.0.0"
+__copyright__ = "Copyright (c) 2015, John O'Brien"
+__credits__ = ["Gordon Richards, PhD"]
+
+__license__ = "WTFPL"
+__version__ = "1.0.1"
+__maintainer__ = "John O'Brien"
 __email__ = "jto33@drexel.edu"
-__date__ = "August 05, 2015"
+__date__ = "August 21, 2015"
+
+__since__ = "August 05, 2015"
+
+
+
