@@ -315,14 +315,16 @@ class Stacker(Tk.Frame): #Custom Widget for Managing which Objects get Stacked
 
 	def bindWidgets(self):
 		'''Event Bindings for Various Widgets'''
+		self.event_add('<<SingleSelect>>','<Button-1>','<Up>','<Down>')
+
 		self.unstackable.bind('<Double-Button-1>', self.push)
 		self.stackable.bind('<Double-Button-1>', self.pull)
 
 		self.unstackable.bind('<Button-3>', self.on_right_click)
 		self.stackable.bind('<Button-3>', self.on_right_click)
 
-		self.unstackable.bind('<FocusIn>', self.on_focus_in)
-		self.stackable.bind('<FocusIn>', self.on_focus_in)
+		self.unstackable.bind('<<SingleSelect>>', self.test_click_select)
+		self.stackable.bind('<<SingleSelect>>', self.test_click_select)
 
 	def file_sort(self, stack, parent_stack):
 		'''Sort a list of object names based on the ordering
@@ -392,32 +394,28 @@ class Stacker(Tk.Frame): #Custom Widget for Managing which Objects get Stacked
 				self.stackable.see(index)
 				self.stackable.selection_clear(0, Tk.END)
 				self.stackable.selection_set(index)
+				self.stackable.activate(index)
 			elif result in unstack:
 				index = unstack.index(result)
 				self.unstackable.see(index)
 				self.unstackable.selection_clear(0, Tk.END)
 				self.unstackable.selection_set(index)
+				self.unstackable.activate(index)
 
-	def poll(self, event):
-		'''Poll the calling widget for changes to it's
-		active listbox element'''
-	
-		if self.master.focus_get() is not event.widget or self.master.canvas_lock_var.get(): 
-			event.widget.last_selection = None
-			return
-		try:
-			event.widget.last_selection
-		except AttributeError:
-			event.widget.last_selection = None
-		selection = event.widget.get(Tk.ACTIVE)
-		if selection != event.widget.last_selection and selection:
-			event.widget.last_selection = selection
-			item = selection.join(('SDSS_','.fits'))
+	def test_click_select(self, event):
+
+		if event.type == '4': #Click
+			selection = event.widget.nearest(event.y)
+			item = event.widget.get(selection)
+		elif event.type == '2': #Keyboard
+			return event.widget.event_generate('<<SingleSelect>>', when = 'tail')
+		elif event.type == '35': #Virtual Event
+			item = event.widget.get(Tk.ACTIVE)
+		if item != self.master.files[self.master.pos][5:-5] and item:
+			item = item.join(('SDSS_','.fits'))
 			index = self.master.files.index(item)
 			self.master.pos = index
 			self.master.view_current(False)
-
-		self.after(100/6, self.poll, event)	
 
 	def on_focus_in(self, event):
 		'''
@@ -442,7 +440,6 @@ class ImageViewer(Tk.Frame): #Main Interface and Image Viewer
 		current_files = os.listdir('FIRST_Cutouts/')
 		self.files = current_files 
 		self.median = [] #Place to store the median stack result
-		while not self.files: self.download_from_file()
 		self.pos = 0 #Position in the list of files
 		self.canvas_lock_var = Tk.IntVar() #Are we updating the canvas?
 		self.createWidgets()
@@ -472,7 +469,7 @@ class ImageViewer(Tk.Frame): #Main Interface and Image Viewer
 	
 		self.fig.canvas.draw()
 		self.bg = self.fig.canvas.copy_from_bbox(self.fig.bbox)
-		self.view_current()	
+		if self.files: self.view_current()	
 
 	def createFigure(self):
 		'''Build the main figure canvas and toolbar.'''
@@ -639,8 +636,6 @@ class ImageViewer(Tk.Frame): #Main Interface and Image Viewer
 				except AttributeError as e:
 					pass
 
-			elif not self.files: sys.exit(2)
-
 		else:
 
 			print "Function Not Currently Supported."
@@ -661,7 +656,8 @@ class ImageViewer(Tk.Frame): #Main Interface and Image Viewer
 				except ValueError as e:
 					print e
 					print "File Not in FIRST_Cutouts/"
-					decision = raw_input("Would You Like To Copy it There? (y/N):")
+					#decision = raw_input("Would You Like To Copy it There? (y/N):")
+					decision = 'Y'
 					if decision.upper() == 'Y':
 						shutil.copy(file_name, 'FIRST_Cutouts/')
 						self.files = current_files = os.listdir('FIRST_Cutouts/')
