@@ -2,6 +2,7 @@
 '''
 Tool for viewing image cutouts from the VLA FIRST survey.
 
+Powered by Anaconda
 More in depth
 Description here
 '''
@@ -46,6 +47,7 @@ if not os.path.exists(IMAGE_PATH):os.makedirs(IMAGE_PATH)
 
 #CONSTANTS:
 ##Program Parameters
+CMAP = 'jet' #Color map for the image plots
 MEMMAP = True #Use memory mapping while opening fits files?
 REMOVE_FAILED_LOADS = False #Should Incomplete FITS files be removed?
 IMAGE_SIZE = 5.0 #Image size in arc-minutes
@@ -161,7 +163,7 @@ def getCutout(data, name):
 	try:
 		req = urllib2.Request(TARGET, data)
 		resp = urllib2.urlopen(req, None, 10)
-		with open('FIRST_Cutouts/'+name,'wb') as f:
+		with open('/'.join((IMAGE_PATH,name)),'wb') as f:
 			f.write(resp.read())
 		status = 1 #Success, 0 implies failure
 	except urllib2.URLError, err:
@@ -350,6 +352,7 @@ class Stacker(Tk.Frame): #Custom Widget for Managing which Objects get Stacked
 		self.stackable.insert(Tk.END, *items)
 		self.unstackable.insert(Tk.END, *ustack)
 
+		self.see_item(self.master.files[self.master.pos])
 		self.update()
 		
 	def pull(self, event = None):
@@ -368,6 +371,7 @@ class Stacker(Tk.Frame): #Custom Widget for Managing which Objects get Stacked
 		self.unstackable.insert(Tk.END, *items)
 		self.stackable.insert(Tk.END, *stack)
 
+		self.see_item(self.master.files[self.master.pos])
 		self.update()
 
 	def get_stackable(self):
@@ -437,7 +441,7 @@ class ImageViewer(Tk.Frame): #Main Interface and Image Viewer
 		global current_files
 
 		Tk.Frame.__init__(self, master)
-		current_files = os.listdir('FIRST_Cutouts/')
+		current_files = os.listdir(IMAGE_PATH)
 		self.files = current_files 
 		self.median = [] #Place to store the median stack result
 		self.pos = 0 #Position in the list of files
@@ -452,9 +456,9 @@ class ImageViewer(Tk.Frame): #Main Interface and Image Viewer
 
 		self.ax = self.fig.add_subplot(111)
 		#Draw the first image to initialize the display
-		self.ax.imshow([[0.0,0.0],[0.0,0.0]], cmap = 'jet')
+		self.ax.imshow([[0.0,0.0],[0.0,0.0]], cmap = CMAP)
 		self.image = self.ax.images[0] #The image artist
-		self.cbar = self.fig.colorbar(self.image, cmap = 'jet', ax = self.ax, orientation = 'vertical', fraction = 0.046, pad = 0.04) #The colorbar artist
+		self.cbar = self.fig.colorbar(self.image, cmap = CMAP, ax = self.ax, orientation = 'vertical', fraction = 0.046, pad = 0.04) #The colorbar artist
 
 		#Set the tick formatter
 		ext = IMAGE_SIZE/2.0
@@ -539,7 +543,7 @@ class ImageViewer(Tk.Frame): #Main Interface and Image Viewer
 
 		try:
 			self.ax.set_title(self.files[self.pos][5:-5])
-			img = fits.open('/'.join(('FIRST_Cutouts/',self.files[self.pos])))[0].data
+			img = fits.open('/'.join((IMAGE_PATH,self.files[self.pos])))[0].data
 			self.image.set_data(img)
 			self.image.autoscale()
 			self.fig.canvas.draw()
@@ -549,7 +553,7 @@ class ImageViewer(Tk.Frame): #Main Interface and Image Viewer
 			print e, 
 			if REMOVE_FAILED_LOADS:
 				print "Removing"
-				os.remove("FIRST_Cutouts/"+self.files.pop(self.pos))
+				os.remove("/".join((IMAGE_PATH,self.files.pop(self.pos))))
 				self.view_current()
 			else:
 				print "Cannot Load"	
@@ -586,7 +590,7 @@ class ImageViewer(Tk.Frame): #Main Interface and Image Viewer
 			print f
 			if not i%100: self.update_loading(1.0*i/len_files)
 			try:
-				img_file = fits.open('/'.join(('FIRST_Cutouts',f)), memmap = MEMMAP)
+				img_file = fits.open('/'.join((IMAGE_PATH,f)), memmap = MEMMAP)
 				img = img_file[0].data
 				img_file.close()				
 
@@ -596,7 +600,7 @@ class ImageViewer(Tk.Frame): #Main Interface and Image Viewer
 				if REMOVE_FAILED_LOADS:
 					print "Removing"	
 					n = files.pop(files.index(f))
-					os.remove("FIRST_Cutouts/"+n)
+					os.remove("/".join((IMAGE_PATH,n)))
 				else:
 					print "Cannot Load"
 		self.update_loading(1.0)
@@ -628,7 +632,7 @@ class ImageViewer(Tk.Frame): #Main Interface and Image Viewer
 
 				downloadCutouts(genFromFile(file_name))
 				old_files = set(current_files)
-				current_files = os.listdir('FIRST_Cutouts/')
+				current_files = os.listdir(IMAGE_PATH)
 				self.files = current_files
 				new_files = set(current_files) - old_files
 				try:
@@ -645,7 +649,7 @@ class ImageViewer(Tk.Frame): #Main Interface and Image Viewer
 		
 		if TKDIAG:
 		
-			file_name = tkFileDialog.askopenfilename(filetypes = [('FITS',('.fits','.fit')), ('All Files','.*')], initialdir = 'FIRST_Cutouts/', parent = self)
+			file_name = tkFileDialog.askopenfilename(filetypes = [('FITS',('.fits','.fit')), ('All Files','.*')], initialdir = IMAGE_PATH, parent = self)
 			while file_name: #Only max 2 loops
 
 				try: #Do we already have this file?
@@ -655,12 +659,12 @@ class ImageViewer(Tk.Frame): #Main Interface and Image Viewer
 					file_name = ''
 				except ValueError as e:
 					print e
-					print "File Not in FIRST_Cutouts/"
+					print "File Not in",IMAGE_PATH
 					#decision = raw_input("Would You Like To Copy it There? (y/N):")
 					decision = 'Y'
 					if decision.upper() == 'Y':
-						shutil.copy(file_name, 'FIRST_Cutouts/')
-						self.files = current_files = os.listdir('FIRST_Cutouts/')
+						shutil.copy(file_name, IMAGE_PATH)
+						self.files = current_files = os.listdir(IMAGE_PATH)
 						file_name = os.path.basename(file_name)
 
 					else:
@@ -729,7 +733,7 @@ if __name__ == '__main__':
 
 __author__ = "John O'Brien"
 __copyright__ = "Copyright (c) 2015, John O'Brien"
-__credits__ = ["Gordon Richards, PhD"]
+__credits__ = ["Gordon Richards, PhD", "Continuum Analytics"]
 
 __license__ = "WTFPL"
 __version__ = "1.0.1"
