@@ -593,8 +593,8 @@ class ImageViewer(Tk.Frame): #Main Interface and Image Viewer
 				img_file = fits.open('/'.join((IMAGE_PATH,f)), memmap = MEMMAP)
 				img = img_file[0].data
 				img_file.close()				
-
-				data.append(img)
+				if img.shape[0] == round(IMAGE_SIZE*500.0/15.0):
+					data.append(img)
 			except IOError as e:
 				print e,
 				if REMOVE_FAILED_LOADS:
