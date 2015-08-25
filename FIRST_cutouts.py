@@ -493,6 +493,7 @@ class ImageViewer(Tk.Frame): #Main Interface and Image Viewer
 		self.next_button = Tk.Button(self.stacker.buttonFrame,text = 'Next', command = self.next)
 		self.prev_button = Tk.Button(self.stacker.buttonFrame,text = 'Prev', command = self.prev)
 		self.medButton = Tk.Button(self.stacker.buttonFrame, text = 'Median Stack', command = lambda x=None: self.median_stack(self.stacker.get_stackable()))
+		self.SmedButton = Tk.Button(self.stacker.buttonFrame, text = 'Smart Median Stack', command = lambda x=None: self.smart_median_stack(self.stacker.get_stackable()))
 
 		self.loader = Tk.Canvas(self.loaderFrame, height = 10) 
 		self.canvas_lock = Tk.Checkbutton(self.stacker.descriptionFrame, indicatoron = False, text = 'Lock Canvas', variable = self.canvas_lock_var, padx = 5, pady = 5) 
@@ -514,6 +515,7 @@ class ImageViewer(Tk.Frame): #Main Interface and Image Viewer
 		self.prev_button.pack(side = Tk.LEFT, expand = 1, fill = Tk.X)
 		self.canvas_lock.pack(side = Tk.RIGHT, expand = 0, fill = Tk.X)
 		self.medButton.pack(side = Tk.LEFT, fill = Tk.X, expand = 1)
+		self.SmedButton.pack(side = Tk.LEFT, fill = Tk.X, expand = 1)
 		self.stats.pack(side = Tk.LEFT, fill = Tk.NONE, expand = 0, anchor = Tk.NW)
 		if TKDIAG:
 			self.downloader.pack(side = Tk.LEFT, fill = Tk.X, expand = 1)
@@ -622,6 +624,48 @@ class ImageViewer(Tk.Frame): #Main Interface and Image Viewer
 		self.fig.canvas.draw()
 		print "Done"
 
+	def smart_median_stack(self, files = None):
+		'''Performs median stacking but with a filter
+
+		Filters out objects whose image centers
+		don't seem to show much variance from the 
+		full image
+		'''
+		if not files: files = self.files
+		len_files = len(files)
+		data = []
+		self.start_loading()
+		pixels = round(IMAGE_SIZE * 500.0/15.0)
+		center = pixels/2
+		for i,f in enumerate(files):
+			if not i%100: self.update_loading(1.0*i/len_files)
+			try:
+				img_file = fits.open('/'.join((IMAGE_PATH,f)), memmap = MEMMAP)
+				img = img_file[0].data
+				img_file.close()				
+				if img.shape[0] == pixels:
+					std = img.std()
+					mean = np.mean(img[center-5:center+5, center-5:center+5])
+					full_mean = np.mean(img)
+					if mean > full_mean + std:	
+						data.append(f)
+			except IOError as e:
+				print e,
+				if REMOVE_FAILED_LOADS:
+					print "Removing"	
+					n = files.pop(files.index(f))
+					os.remove("/".join((IMAGE_PATH,n)))
+				else:
+					print "Cannot Load"
+		self.update_loading(1.0)
+		
+		self.loader.pack_forget()
+		self.loader.delete(self.rect)
+		if not data:
+			print "No Good Files"
+		else:
+			self.median_stack(files = data)
+
 	def download_from_file(self): #Allows import of coordinate list
 		global current_files
 
@@ -704,12 +748,12 @@ class ImageViewer(Tk.Frame): #Main Interface and Image Viewer
 		self.err_dlog = Tk.Text(self.stacker.infoFrame, width = 40, bg = 'grey', state = Tk.DISABLED) #The dialog that is redirected to
 		def dlog_write(x): #Method for overriding the stdout write
 			self.err_dlog.config(state = Tk.NORMAL)
-			if x != '\n': x = '> ' + x
+			if x == '\n': x = x + '> '
 			self.err_dlog.insert(Tk.END, x)
 			self.err_dlog.see(Tk.END)
 			self.err_dlog.config(state = Tk.DISABLED)
 		self.err_dlog.write = dlog_write
-		#sys.stdout = self.err_dlog	
+		sys.stdout = self.err_dlog	
 		sys.stderr = self.err_dlog	
 		self.err_dlog.pack(expand = 1, fill = Tk.BOTH)
 
@@ -736,10 +780,10 @@ __copyright__ = "Copyright (c) 2015, John O'Brien"
 __credits__ = ["Gordon Richards, PhD", "Continuum Analytics"]
 
 __license__ = "WTFPL"
-__version__ = "1.0.1"
+__version__ = "1.0.2"
 __maintainer__ = "John O'Brien"
 __email__ = "jto33@drexel.edu"
-__date__ = "August 21, 2015"
+__date__ = "August 25, 2015"
 
 __since__ = "August 05, 2015"
 
