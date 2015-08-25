@@ -49,7 +49,7 @@ if not os.path.exists(IMAGE_PATH):os.makedirs(IMAGE_PATH)
 ##Program Parameters
 CMAP = 'jet' #Color map for the image plots
 MEMMAP = True #Use memory mapping while opening fits files?
-REMOVE_FAILED_LOADS = False #Should Incomplete FITS files be removed?
+REMOVE_FAILED_LOADS = True #Should Incomplete FITS files be removed?
 IMAGE_SIZE = 5.0 #Image size in arc-minutes
 DISPLAY_SIZE = 15.0 #Display size in arc-minutes, not functional
 IMAGE_TYPE = "FITS_File" #Type of image to return
@@ -333,6 +333,12 @@ class Stacker(Tk.Frame): #Custom Widget for Managing which Objects get Stacked
 		in same master list of file names associated with the object'''
 
 		mapping = dict([(f[5:-5],i) for i,f in enumerate(parent_stack)])
+		def key(x):
+			try: 
+				return mapping[x]+1
+			except KeyError as e:
+				return None
+		stack = filter(key, stack)
 		return sorted(tuple(stack), key = lambda x: mapping[x])
 
 	def push(self, event = None):
@@ -408,7 +414,9 @@ class Stacker(Tk.Frame): #Custom Widget for Managing which Objects get Stacked
 
 	def test_click_select(self, event):
 
-		if event.type == '4': #Click
+		if self.master.canvas_lock_var.get():
+			return
+		elif event.type == '4': #Click
 			selection = event.widget.nearest(event.y)
 			item = event.widget.get(selection)
 		elif event.type == '2': #Keyboard
@@ -417,9 +425,14 @@ class Stacker(Tk.Frame): #Custom Widget for Managing which Objects get Stacked
 			item = event.widget.get(Tk.ACTIVE)
 		if item != self.master.files[self.master.pos][5:-5] and item:
 			item = item.join(('SDSS_','.fits'))
-			index = self.master.files.index(item)
-			self.master.pos = index
-			self.master.view_current(False)
+			try:
+				index = self.master.files.index(item)
+				self.master.pos = index
+				self.master.view_current(False)
+			except IndexError as e:
+				print 'IndexError:',e
+				#TODO: Fix the program here
+	
 
 	def on_focus_in(self, event):
 		'''
@@ -590,7 +603,7 @@ class ImageViewer(Tk.Frame): #Main Interface and Image Viewer
 		print "Loading Images..."
 		for i,f in enumerate(files):
 			print f
-			if not i%100: self.update_loading(1.0*i/len_files)
+			if not i%25: self.update_loading(1.0*i/len_files)
 			try:
 				img_file = fits.open('/'.join((IMAGE_PATH,f)), memmap = MEMMAP)
 				img = img_file[0].data
@@ -638,7 +651,7 @@ class ImageViewer(Tk.Frame): #Main Interface and Image Viewer
 		pixels = round(IMAGE_SIZE * 500.0/15.0)
 		center = pixels/2
 		for i,f in enumerate(files):
-			if not i%100: self.update_loading(1.0*i/len_files)
+			if not i%25: self.update_loading(1.0*i/len_files)
 			try:
 				img_file = fits.open('/'.join((IMAGE_PATH,f)), memmap = MEMMAP)
 				img = img_file[0].data
@@ -780,7 +793,7 @@ __copyright__ = "Copyright (c) 2015, John O'Brien"
 __credits__ = ["Gordon Richards, PhD", "Continuum Analytics"]
 
 __license__ = "WTFPL"
-__version__ = "1.0.2"
+__version__ = "1.0.3"
 __maintainer__ = "John O'Brien"
 __email__ = "jto33@drexel.edu"
 __date__ = "August 25, 2015"
