@@ -431,15 +431,8 @@ class Stacker(Tk.Frame): #Custom Widget for Managing which Objects get Stacked
 				self.master.view_current(False)
 			except IndexError as e:
 				print 'IndexError:',e
-				#TODO: Fix the program here
-	
-
-	def on_focus_in(self, event):
-		'''
-		Start polling for changes to the active
-		listbox element when the listbox has focus.
-		'''
-		self.poll(event)
+				#TODO: Fix the program here	
+				#Update the listboxes with the correct files
 
 	def on_right_click(self, event):
 		"""Add Options Menu"""	
@@ -745,7 +738,7 @@ class ImageViewer(Tk.Frame): #Main Interface and Image Viewer
 		shape = 'px x '.join(map(str,data.shape))+'px'
 		minimum = str(data.min())
 		maximum = str(data.max())	
-		stat_names = "Mean Min Median Max SD Var Shape".split()
+		stat_names = "Mean Min Max Median SD Var Shape".split()
 		stat_values = [mean, minimum, maximum, median, std, var, shape]
 		stats = zip(stat_names, stat_values)
 		text = '\n\n'.join(['{0:<7} {1}'.format(*stat) for stat in stats])
