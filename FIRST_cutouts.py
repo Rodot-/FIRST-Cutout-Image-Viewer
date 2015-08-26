@@ -462,7 +462,7 @@ class ImageViewer(Tk.Frame): #Main Interface and Image Viewer
 
 		self.ax = self.fig.add_subplot(111)
 		#Draw the first image to initialize the display
-		self.ax.imshow([[0.0,0.0],[0.0,0.0]], cmap = CMAP)
+		self.ax.imshow([[0.0,0.0],[0.0,0.0]], cmap = CMAP, interpolation = 'none')
 		self.image = self.ax.images[0] #The image artist
 		self.cbar = self.fig.colorbar(self.image, cmap = CMAP, ax = self.ax, orientation = 'vertical', fraction = 0.046, pad = 0.04) #The colorbar artist
 
