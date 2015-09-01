@@ -651,7 +651,7 @@ class ImageViewer(Tk.Frame): #Main Interface and Image Viewer
 				img_file.close()				
 				if img.shape[0] == pixels:
 					std = img.std()
-					mean = np.mean(img[center-5:center+5, center-5:center+5])
+					mean = np.mean(img[center-3:center+3, center-3:center+3])
 					full_mean = np.mean(img)
 					if mean > full_mean + std:	
 						data.append(f)
@@ -783,9 +783,8 @@ if __name__ == '__main__':
 
 __author__ = "John O'Brien"
 __copyright__ = "Copyright (c) 2015, John O'Brien"
-__credits__ = ["Gordon Richards, PhD", "Continuum Analytics"]
+__credits__ = ["Gordon Richards","R.H. Becker","R.L White","D.J. Helfand","Continuum Analytics"]
 
-__license__ = "WTFPL"
 __version__ = "1.0.3"
 __maintainer__ = "John O'Brien"
 __email__ = "jto33@drexel.edu"
