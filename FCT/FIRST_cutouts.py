@@ -99,6 +99,8 @@ Keys:
 #Special Characters
 RIGHT_ARROW = u'\u25B6'
 LEFT_ARROW = u'\u25C0'
+DOWN_ARROW = u'\u25BC'
+DOWN_ARROW = u'\u2193'
 SIGMA = u'\u03A3'
 ###
 
@@ -477,6 +479,7 @@ class ImageViewer(Tk.Frame): #Main Interface and Image Viewer
 		self.cbar.formatter = matplotlib.ticker.FuncFormatter(func_cbar)
 		self.cbar.update_ticks()
 	
+		self.fig.tight_layout()
 		self.fig.canvas.draw()
 		self.bg = self.fig.canvas.copy_from_bbox(self.fig.bbox)
 		if self.files: self.view_current()	
@@ -496,6 +499,7 @@ class ImageViewer(Tk.Frame): #Main Interface and Image Viewer
 		self.stacker = Stacker(self)
 		self.buttonFrame = Tk.Frame(self.stacker.buttonFrame)
 		self.loaderFrame = Tk.Frame(self)
+		self.entryFrame = Tk.Frame(self.stacker.buttonFrame)
 		self.next_button = Tk.Button(self.stacker.buttonFrame,text = 'Next', command = self.next)
 		self.prev_button = Tk.Button(self.stacker.buttonFrame,text = 'Prev', command = self.prev)
 		self.medButton = Tk.Button(self.stacker.buttonFrame, text = 'Median Stack', command = lambda x=None: self.median_stack(self.stacker.get_stackable()))
@@ -504,7 +508,14 @@ class ImageViewer(Tk.Frame): #Main Interface and Image Viewer
 		self.loader = Tk.Canvas(self.loaderFrame, height = 10) 
 		self.canvas_lock = Tk.Checkbutton(self.stacker.descriptionFrame, indicatoron = False, text = 'Lock Canvas', variable = self.canvas_lock_var, padx = 5, pady = 5) 
 		self.stats = Tk.Button(self.buttonFrame, text = SIGMA, command = self.get_stats)
-		
+			
+		self.RA_entry = Tk.Entry(self.entryFrame)
+		self.RA_label = Tk.Label(self.entryFrame, text = 'RA:', padx = 5)
+		self.DEC_entry = Tk.Entry(self.entryFrame)
+		self.DEC_label = Tk.Label(self.entryFrame, text = 'DEC:', padx = 5)
+		self.quick_downloader = Tk.Button(self.entryFrame, text = DOWN_ARROW, command = self.download_from_coords)
+		#For downloading a single object
+	
 		if TKDIAG:
 			self.downloader = Tk.Button(self.buttonFrame, text = 'Download', command = self.download_from_file)
 			self.image_loader = Tk.Button(self.buttonFrame, text = 'Load Image', command = self.load_cutout_from_file)
@@ -513,6 +524,7 @@ class ImageViewer(Tk.Frame): #Main Interface and Image Viewer
 
 		self.stacker.pack(side = Tk.LEFT, fill = Tk.Y, expand = 0)
 		self.figureFrame.pack(side = Tk.TOP, fill = Tk.BOTH, expand = 1)
+		self.entryFrame.pack(side = Tk.BOTTOM, fill = Tk.X, expand = 0)
 		self.buttonFrame.pack(side = Tk.BOTTOM, fill = Tk.X, expand = 0)
 		self.loaderFrame.pack(side = Tk.BOTTOM, fill = Tk.X, expand = 0)
                 self.canvas.get_tk_widget().pack(fill = Tk.BOTH, expand = 1)
@@ -523,6 +535,12 @@ class ImageViewer(Tk.Frame): #Main Interface and Image Viewer
 		self.medButton.pack(side = Tk.LEFT, fill = Tk.X, expand = 1)
 		self.SmedButton.pack(side = Tk.LEFT, fill = Tk.X, expand = 1)
 		self.stats.pack(side = Tk.LEFT, fill = Tk.NONE, expand = 0, anchor = Tk.NW)
+		self.RA_label.pack(side = Tk.LEFT, fill = Tk.NONE, expand = 0)
+		self.RA_entry.pack(side = Tk.LEFT, fill = Tk.BOTH, expand = 1)
+		self.DEC_label.pack(side = Tk.LEFT, fill = Tk.NONE, expand = 0)
+		self.DEC_entry.pack(side = Tk.LEFT, fill = Tk.BOTH, expand = 1)
+		self.quick_downloader.pack(side = Tk.LEFT, fill = Tk.NONE, expand = 0)	
+	
 		if TKDIAG:
 			self.downloader.pack(side = Tk.LEFT, fill = Tk.X, expand = 1)
 			self.image_loader.pack(side = Tk.LEFT, fill = Tk.X, expand = 1)
@@ -671,6 +689,26 @@ class ImageViewer(Tk.Frame): #Main Interface and Image Viewer
 			print "No Good Files"
 		else:
 			self.median_stack(files = data)
+
+	def download_from_coords(self): #download a cutout typed into the entry box
+		global current_files
+		RA = self.RA_entry.get() #Assume this exists
+		DEC = self.DEC_entry.get() #ditto
+		downloadCutouts([(RA, DEC)])
+		old_files = set(current_files)
+		current_files = os.listdir(IMAGE_PATH)
+		self.files = current_files
+		new_files = set(current_files) - old_files
+		try:
+			self.stacker.update_listboxes(*new_files)
+		except AttributeError as e:
+			pass
+		try:
+			self.pos = self.files.index(list(new_files)[0])
+			self.view_current()
+		except IndexError as e:
+			print "You appear to already have this"
+			pass
 
 	def download_from_file(self): #Allows import of coordinate list
 		global current_files
