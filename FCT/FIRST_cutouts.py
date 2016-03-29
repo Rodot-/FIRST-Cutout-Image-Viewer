@@ -826,7 +826,7 @@ __author__ = "John (Jack) T. O'Brien"
 __copyright__ = "Copyright (c) 2015, John O'Brien"
 __credits__ = ["Gordon Richards","R.H. Becker","R.L White","D.J. Helfand","Continuum Analytics"]
 
-__version__ = "1.0.4"
+__version__ = "1.0.5"
 __maintainer__ = "John O'Brien"
 __email__ = "jto33@drexel.edu"
 __date__ = "March 29, 2016"
