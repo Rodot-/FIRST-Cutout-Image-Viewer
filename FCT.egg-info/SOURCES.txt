@@ -1,0 +1,8 @@
+setup.py
+FCT/FIRST_cutouts.py
+FCT/__init__.py
+FCT.egg-info/PKG-INFO
+FCT.egg-info/SOURCES.txt
+FCT.egg-info/dependency_links.txt
+FCT.egg-info/not-zip-safe
+FCT.egg-info/top_level.txt
