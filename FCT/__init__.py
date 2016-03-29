@@ -1,2 +1,2 @@
-from FIRST_cutouts.py import *
+from FIRST_cutouts import *
 main()
